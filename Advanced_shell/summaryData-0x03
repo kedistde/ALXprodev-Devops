@@ -1,0 +1,20 @@
+#!/bin/bash
+# Generate CSV header
+echo "name,height,weight" > pokemon_report.csv
+
+# Process each JSON file
+for file in *.json; do
+    jq -r '"\(.name),\(.height/10),\(.weight/10)"' "$file" >> pokemon_report.csv
+done
+
+# Calculate and display averages
+awk -F',' '
+NR>1 {
+    height_sum += $2; 
+    weight_sum += $3;
+    count++
+} 
+END {
+    printf "\nAverage height: %.2fm\nAverage weight: %.2fkg\n", 
+    height_sum/count, weight_sum/count
+}' pokemon_report.csv
