@@ -1,0 +1,13 @@
+#!/bin/bash
+pokemons=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
+
+for pokemon in "${pokemons[@]}"; do
+    # Convert to lowercase for filename
+    filename=$(echo "$pokemon" | tr '[:upper:]' '[:lower:]').json
+    
+    # Make API request
+    curl -s "https://pokeapi.co/api/v2/pokemon/$pokemon" -o "$filename" || echo "Failed to get $pokemon" >&2
+    
+    # Add delay to avoid rate limiting (1 second between requests)
+    sleep 1
+done
