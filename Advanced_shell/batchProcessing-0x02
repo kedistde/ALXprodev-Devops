@@ -1,6 +1,8 @@
 #!/bin/bash
-pokemons=("Bulbasaur" "Ivysaur" "Venusaur" "Charmander" "Charmeleon")
-
+for p in bulbasaur ivysaur venusaur charmander charmeleon; do
+    curl -s "https://pokeapi.co/api/v2/pokemon/$p" -o "$p.json" || echo "Failed $p" > errors.txt
+    sleep 1
+done
 for pokemon in "${pokemons[@]}"; do
     # Convert to lowercase for filename
     filename=$(echo "$pokemon" | tr '[:upper:]' '[:lower:]').json
