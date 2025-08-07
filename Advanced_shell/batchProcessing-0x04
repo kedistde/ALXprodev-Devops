@@ -1,0 +1,74 @@
+#!/bin/bash
+pokemons=("bulbasaur" "ivysaur" "venusaur" "charmander" "charmeleon")
+max_parallel=3  # Limit concurrent processes
+pids=()         # Store process IDs
+errors=()       # Track failed Pokémon
+
+# Create output directory
+mkdir -p pokemon_data
+
+# Fetch function with retry logic
+fetch_pokemon() {
+    local pokemon=$1
+    local attempts=0
+    local max_retries=2
+    local delay=1
+    
+    while [ $attempts -lt $max_retries ]; do
+        if curl -s -f "https://pokeapi.co/api/v2/pokemon/$pokemon" -o "pokemon_data/${pokemon}.json"; then
+            return 0
+        fi
+        attempts=$((attempts + 1))
+        sleep $delay
+    done
+    return 1
+}
+
+# Process manager
+for pokemon in "${pokemons[@]}"; do
+    # Wait when we hit max parallel processes
+    while [ $(jobs -rp | wc -l) -ge $max_parallel ]; do
+        sleep 0.1
+    done
+    
+    # Start fetch in background
+    fetch_pokemon "$pokemon" &
+    pids+=($!)
+done
+
+# Wait for all processes and check results
+for i in "${!pokemons[@]}"; do
+    if ! wait ${pids[$i]}; then
+        errors+=("${pokemons[$i]}")
+    fi
+done
+
+# Generate report
+echo "name,height(m),weight(kg)" > report.csv
+for pokemon in "${pokemons[@]}"; do
+    if [ -f "pokemon_data/${pokemon}.json" ]; then
+        jq -r '[.name, .height/10, .weight/10] | @csv' "pokemon_data/${pokemon}.json" >> report.csv
+    fi
+done
+
+# Output summary
+echo -e "\n=== Process Complete ==="
+echo "Successfully fetched: $((${#pokemons[@]} - ${#errors[@]})) Pokémon"
+if [ ${#errors[@]} -gt 0 ]; then
+    echo "Failed to fetch: ${errors[*]}"
+fi
+
+# Calculate averages
+awk -F',' '
+NR==1 {next}
+NF==3 {
+    height_sum += $2
+    weight_sum += $3
+    count++
+}
+END {
+    if (count > 0) {
+        printf "\nAverage height: %.2fm\n", height_sum/count
+        printf "Average weight: %.2fkg\n", weight_sum/count
+    }
+}' report.csv
